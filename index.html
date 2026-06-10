@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>유효기간 관리 — 센트럴온누리약국</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f2; --bg3: #ededea;
+    --text: #1a1a18; --text2: #6b6b67; --text3: #a0a09c;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --radius: 8px; --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #262624; --bg3: #303030;
+      --text: #f0f0ec; --text2: #a0a09c; --text3: #606060;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+    }
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg2); color: var(--text); min-height: 100dvh; }
+  .app { max-width: 480px; margin: 0 auto; background: var(--bg2); min-height: 100dvh; display: flex; flex-direction: column; }
+
+  /* 로그인 화면 */
+  .login-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100dvh; padding: 2rem 1.5rem; }
+  .login-logo { font-size: 40px; color: var(--text3); margin-bottom: 1rem; }
+  .login-title { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .login-sub { font-size: 14px; color: var(--text2); margin-bottom: 2rem; text-align: center; }
+  .login-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 20px; width: 100%; max-width: 340px; }
+  .login-section-title { font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 12px; }
+  .login-row { margin-bottom: 10px; }
+  .login-row label { display: block; font-size: 12px; color: var(--text3); margin-bottom: 5px; }
+  .login-row input { width: 100%; padding: 9px 11px; border: 0.5px solid var(--border); border-radius: var(--radius); font-size: 14px; background: var(--bg); color: var(--text); font-family: inherit; }
+  .login-row input:focus { outline: none; border-color: var(--border2); }
+  .login-divider { display: flex; align-items: center; gap: 10px; margin: 16px 0; }
+  .login-divider hr { flex: 1; border: none; border-top: 0.5px solid var(--border); }
+  .login-divider span { font-size: 12px; color: var(--text3); }
+  .btn { width: 100%; padding: 11px; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius); font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text); font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .btn:hover { background: var(--bg3); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
+  .btn-primary:hover { opacity: 0.85; background: var(--text); }
+  .btn-danger { color: #E24B4A; }
+  .btn + .btn { margin-top: 8px; }
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .btn-row .btn { margin-top: 0; }
+  .login-error { font-size: 12px; color: #E24B4A; margin-top: 8px; text-align: center; min-height: 18px; }
+
+  /* 헤더 */
+  .header { background: var(--bg); border-bottom: 0.5px solid var(--border); padding: 14px 16px 10px; position: sticky; top: 0; z-index: 10; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .header-title { font-size: 17px; font-weight: 500; }
+  .header-right { display: flex; align-items: center; gap: 8px; }
+  .team-badge { font-size: 11px; background: var(--bg2); border: 0.5px solid var(--border); border-radius: 20px; padding: 3px 10px; color: var(--text2); }
+  .user-badge { font-size: 11px; color: var(--text3); }
+  .tabs { display: flex; gap: 4px; background: var(--bg2); border-radius: var(--radius); padding: 3px; }
+  .tab { flex: 1; padding: 7px 4px; border: none; background: transparent; border-radius: 6px; font-size: 13px; cursor: pointer; color: var(--text2); font-family: inherit; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .tab.active { background: var(--bg); color: var(--text); font-weight: 500; border: 0.5px solid var(--border); }
+  .tab i { font-size: 15px; }
+  .content { flex: 1; padding: 12px; overflow-y: auto; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* 통계 */
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat { background: var(--bg); border-radius: var(--radius); padding: 12px; }
+  .stat-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+  .stat-value { font-size: 28px; font-weight: 500; }
+  .v-danger { color: #E24B4A; } .v-warn { color: #BA7517; } .v-ok { color: #3B6D11; }
+
+  /* 필터 */
+  .filter-row { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-btn { padding: 5px 13px; border: 0.5px solid var(--border); border-radius: 20px; font-size: 12px; cursor: pointer; background: var(--bg); color: var(--text2); white-space: nowrap; font-family: inherit; flex-shrink: 0; }
+  .filter-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+  /* 약품 카드 */
+  .drug-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 8px; }
+  .drug-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .drug-name { font-size: 15px; font-weight: 500; color: var(--text); flex: 1; padding-right: 8px; }
+  .drug-controls { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .badge { font-size: 11px; padding: 3px 8px; border-radius: var(--radius); font-weight: 500; }
+  .badge-danger { background: #FCEBEB; color: #A32D2D; }
+  .badge-warn { background: #FAEEDA; color: #854F0B; }
+  .badge-ok { background: #EAF3DE; color: #3B6D11; }
+  .badge-expired { background: #f0f0f0; color: #888; }
+  @media (prefers-color-scheme: dark) {
+    .badge-danger { background: #3d1a1a; color: #f09595; }
+    .badge-warn { background: #3a2800; color: #FAC775; }
+    .badge-ok { background: #1a2e10; color: #C0DD97; }
+    .badge-expired { background: #333; color: #999; }
+  }
+  .drug-meta { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .drug-days { font-size: 13px; font-weight: 500; margin-top: 5px; }
+  .drug-author { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .icon-btn { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 18px; padding: 2px; line-height: 1; }
+  .icon-btn:hover { color: var(--text); }
+  .icon-btn.del:hover { color: #E24B4A; }
+  .empty { text-align: center; padding: 4rem 1rem; color: var(--text3); }
+  .empty i { font-size: 44px; display: block; margin-bottom: 10px; }
+  .empty p { font-size: 14px; line-height: 1.6; }
+
+  /* 실시간 인디케이터 */
+  .sync-bar { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text3); margin-bottom: 10px; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #ccc; flex-shrink: 0; }
+  .sync-dot.online { background: #3B6D11; }
+  .sync-dot.syncing { background: #BA7517; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* 카메라 2단계 */
+  .cam-steps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .cam-step { border: 1.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 1.2rem 0.5rem; text-align: center; cursor: pointer; background: var(--bg); transition: background 0.15s; position: relative; }
+  .cam-step:hover { background: var(--bg3); }
+  .cam-step.done { border-style: solid; border-color: #3B6D11; }
+  .cam-step i.main { font-size: 28px; color: var(--text3); display: block; margin-bottom: 6px; }
+  .cam-step.done i.main { color: #3B6D11; }
+  .cam-step-label { font-size: 12px; color: var(--text2); font-weight: 500; }
+  .cam-step-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+  .cam-done-mark { position: absolute; top: 6px; right: 8px; font-size: 14px; color: #3B6D11; display: none; }
+  .cam-step.done .cam-done-mark { display: block; }
+  .previews { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .preview-box { display: none; }
+  .preview-box img { width: 100%; border-radius: var(--radius); max-height: 120px; object-fit: cover; }
+  .preview-label { font-size: 11px; color: var(--text3); text-align: center; margin-top: 4px; }
+  .analyzing { display: none; text-align: center; padding: 10px; font-size: 13px; color: var(--text2); }
+  .ocr-log { background: var(--bg2); border-radius: var(--radius); padding: 10px 12px; font-size: 13px; color: var(--text2); margin-bottom: 12px; display: none; }
+  .ocr-log-item { padding: 2px 0; }
+
+  /* 폼 */
+  .form-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 12px; }
+  .form-title { font-size: 13px; font-weight: 500; color: var(--text2); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .form-row { margin-bottom: 12px; }
+  .form-row:last-child { margin-bottom: 0; }
+  label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; }
+  input[type=text], input[type=date], input[type=password], select {
+    width: 100%; padding: 9px 11px; border: 0.5px solid var(--border); border-radius: var(--radius);
+    font-size: 14px; background: var(--bg); color: var(--text); font-family: inherit;
+    -webkit-appearance: none; appearance: none;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--border2); }
+
+  /* 설정 */
+  .settings-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 12px; }
+  .settings-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
+  .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
+  .settings-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .settings-label { font-size: 14px; }
+  .settings-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+  .settings-row select { width: 80px; }
+  .footer-note { text-align: center; font-size: 11px; color: var(--text3); padding: 8px; }
+
+  /* 모달 */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 20px 16px 32px; width: 100%; max-width: 480px; max-height: 85dvh; overflow-y: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .modal-title { font-size: 16px; font-weight: 500; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin 1s linear infinite; }
+
+  #cameraNameInput, #cameraExpInput, #importFile { display: none; }
+</style>
+</head>
+<body>
+
+<!-- 로그인 / 팀 선택 화면 -->
+<div id="login-screen" class="login-screen">
+  <div class="login-logo"><i class="ti ti-pill"></i></div>
+  <div class="login-title">유효기간 관리</div>
+  <div class="login-sub">센트럴온누리약국<br>팀 코드로 입장하거나 새 팀을 만드세요</div>
+
+  <div class="login-card">
+    <div class="login-section-title"><i class="ti ti-door-enter" style="margin-right:4px;"></i>기존 팀 입장</div>
+    <div class="login-row">
+      <label>팀 코드</label>
+      <input type="text" id="join-code" placeholder="예) ONNURI01" style="text-transform:uppercase;" maxlength="12">
+    </div>
+    <div class="login-row">
+      <label>내 이름</label>
+      <input type="text" id="join-name" placeholder="예) 김약사">
+    </div>
+    <button class="btn btn-primary" onclick="joinTeam()" style="margin-top:4px;"><i class="ti ti-door-enter"></i> 팀 입장</button>
+
+    <div class="login-divider"><hr><span>또는</span><hr></div>
+
+    <div class="login-section-title"><i class="ti ti-users" style="margin-right:4px;"></i>새 팀 만들기</div>
+    <div class="login-row">
+      <label>팀 코드 (직접 설정)</label>
+      <input type="text" id="create-code" placeholder="예) ONNURI01" style="text-transform:uppercase;" maxlength="12">
+    </div>
+    <div class="login-row">
+      <label>내 이름</label>
+      <input type="text" id="create-name" placeholder="예) 김약사">
+    </div>
+    <button class="btn" onclick="createTeam()" style="margin-top:4px;"><i class="ti ti-plus"></i> 새 팀 만들기</button>
+
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- 메인 앱 -->
+<div class="app" id="main-app" style="display:none;">
+  <div class="header">
+    <div class="header-top">
+      <div class="header-title">유효기간 관리</div>
+      <div class="header-right">
+        <span class="team-badge" id="header-team"></span>
+        <span class="user-badge" id="header-user"></span>
+        <button class="icon-btn" onclick="logout()" title="나가기" style="font-size:16px;"><i class="ti ti-logout"></i></button>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" id="tab-btn-list" onclick="switchTab('list')"><i class="ti ti-list"></i> 목록</button>
+      <button class="tab" id="tab-btn-add" onclick="switchTab('add')"><i class="ti ti-plus"></i> 추가</button>
+      <button class="tab" id="tab-btn-settings" onclick="switchTab('settings')"><i class="ti ti-settings"></i> 설정</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- 목록 탭 -->
+    <div id="tab-list" class="section active">
+      <div class="sync-bar">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-text">연결 중...</span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label"><i class="ti ti-alert-triangle" style="font-size:14px;color:#E24B4A;"></i> 긴급</div>
+          <div class="stat-value v-danger" id="cnt-danger">0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label"><i class="ti ti-clock" style="font-size:14px;color:#BA7517;"></i> 주의</div>
+          <div class="stat-value v-warn" id="cnt-warn">0</div>
+        </div>
+      </div>
+      <div class="filter-row">
+        <button class="filter-btn active" onclick="setFilter('all',this)">전체</button>
+        <button class="filter-btn" onclick="setFilter('danger',this)">긴급</button>
+        <button class="filter-btn" onclick="setFilter('warn',this)">주의</button>
+        <button class="filter-btn" onclick="setFilter('ok',this)">양호</button>
+        <button class="filter-btn" onclick="setFilter('expired',this)">만료</button>
+      </div>
+      <div id="drug-list"></div>
+    </div>
+
+    <!-- 추가 탭 -->
+    <div id="tab-add" class="section">
+      <div class="cam-steps">
+        <div class="cam-step" id="cam-name-btn" onclick="document.getElementById('cameraNameInput').click()">
+          <i class="ti ti-camera main"></i>
+          <div class="cam-step-label">① 약품명 촬영</div>
+          <div class="cam-step-sub">약품명이 보이게</div>
+          <i class="ti ti-circle-check cam-done-mark"></i>
+        </div>
+        <div class="cam-step" id="cam-exp-btn" onclick="document.getElementById('cameraExpInput').click()">
+          <i class="ti ti-camera main"></i>
+          <div class="cam-step-label">② 유효기간 촬영</div>
+          <div class="cam-step-sub">날짜가 보이게</div>
+          <i class="ti ti-circle-check cam-done-mark"></i>
+        </div>
+      </div>
+      <input type="file" id="cameraNameInput" accept="image/*" capture="environment">
+      <input type="file" id="cameraExpInput" accept="image/*" capture="environment">
+      <div class="previews">
+        <div class="preview-box" id="preview-name-box">
+          <img id="preview-name" alt="약품명 사진">
+          <div class="preview-label">약품명 사진</div>
+        </div>
+        <div class="preview-box" id="preview-exp-box">
+          <img id="preview-exp" alt="유효기간 사진">
+          <div class="preview-label">유효기간 사진</div>
+        </div>
+      </div>
+      <div class="analyzing" id="analyzing">
+        <i class="ti ti-loader spin" style="font-size:18px;margin-right:6px;vertical-align:-3px;"></i><span id="analyzing-msg">인식 중...</span>
+      </div>
+      <div class="ocr-log" id="ocr-log"></div>
+      <div class="form-card">
+        <div class="form-title">
+          <span>입력 정보</span>
+          <span style="font-size:11px;color:var(--text3);">사진 촬영 후 자동 입력</span>
+        </div>
+        <div class="form-row">
+          <label>약품명 *</label>
+          <input type="text" id="inp-name" placeholder="예) 아모산정 500mg">
+        </div>
+        <div class="form-row">
+          <label>유효기간 *</label>
+          <input type="date" id="inp-exp">
+        </div>
+        <div class="form-row">
+          <label>보관 위치</label>
+          <input type="text" id="inp-loc" placeholder="예) 1번 선반 3번째">
+        </div>
+        <div class="form-row">
+          <label>수량</label>
+          <input type="text" id="inp-qty" placeholder="예) 100정, 2박스">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addDrug()"><i class="ti ti-device-floppy"></i> 저장하기 (팀 공유)</button>
+    </div>
+
+    <!-- 설정 탭 -->
+    <div id="tab-settings" class="section">
+      <div class="settings-card">
+        <div class="settings-title">팀 정보</div>
+        <div class="settings-row">
+          <div><div class="settings-label">팀 코드</div><div class="settings-sub" id="info-team-code">-</div></div>
+          <button class="icon-btn" onclick="copyTeamCode()" title="코드 복사"><i class="ti ti-copy"></i></button>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">접속자</div><div class="settings-sub" id="info-user">-</div></div>
+        </div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-title">알림 기준</div>
+        <div class="settings-row">
+          <div><div class="settings-label">긴급 기준일</div><div class="settings-sub">빨간색 표시</div></div>
+          <select id="set-danger" onchange="saveSettings()">
+            <option value="14">14일</option>
+            <option value="30" selected>30일</option>
+            <option value="60">60일</option>
+          </select>
+        </div>
+        <div class="settings-row">
+          <div><div class="settings-label">주의 기준일</div><div class="settings-sub">노란색 표시</div></div>
+          <select id="set-warn" onchange="saveSettings()">
+            <option value="30">30일</option>
+            <option value="60" selected>60일</option>
+            <option value="90">90일</option>
+            <option value="120">120일</option>
+          </select>
+        </div>
+      </div>
+      <div class="settings-card">
+        <div class="settings-title">데이터 관리</div>
+        <button class="btn" onclick="exportData()"><i class="ti ti-download"></i> 데이터 내보내기 (JSON)</button>
+      </div>
+      <div class="footer-note">센트럴온누리약국 유효기간 관리 v2.0</div>
+    </div>
+  </div>
+</div>
+
+<!-- 수정 모달 -->
+<div class="modal-overlay" id="edit-modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">약품 정보 수정</div>
+      <button class="icon-btn" onclick="closeEditModal()"><i class="ti ti-x"></i></button>
+    </div>
+    <div class="form-row">
+      <label>약품명 *</label>
+      <input type="text" id="edit-name">
+    </div>
+    <div class="form-row">
+      <label>유효기간 *</label>
+      <input type="date" id="edit-exp">
+    </div>
+    <div class="form-row">
+      <label>보관 위치</label>
+      <input type="text" id="edit-loc">
+    </div>
+    <div class="form-row">
+      <label>수량</label>
+      <input type="text" id="edit-qty">
+    </div>
+    <div class="btn-row" style="margin-top:8px;">
+      <button class="btn" onclick="closeEditModal()"><i class="ti ti-x"></i> 취소</button>
+      <button class="btn btn-primary" onclick="saveEdit()"><i class="ti ti-check"></i> 저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// =============================================
+// ★ 여기에 Firebase 설정을 붙여넣으세요 ★
+// Firebase Console > 프로젝트 설정 > 내 앱 > firebaseConfig
+// =============================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBIJj2xRxLp3GXbe8DSb3Sov1oHtPZvv6c",
+  authDomain: "central-onnuri.firebaseapp.com",
+  projectId: "central-onnuri",
+  storageBucket: "central-onnuri.firebasestorage.app",
+  messagingSenderId: "975452138325",
+  appId: "1:975452138325:web:782bfe0d077559ca1d1ddc"
+};
+
+const GEMINI_KEY = 'AQ.Ab8RN6Itqgl-iEWQeITHfQM6L1L5GcxMJ7lq1f1vjwhe5ewKxA';
+const GEMINI_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3-flash-preview',
+  'gemini-2.5-flash'
+];
+let geminiModelIdx = 0;
+function nextGeminiModel() {
+  const m = GEMINI_MODELS[geminiModelIdx % GEMINI_MODELS.length];
+  geminiModelIdx++;
+  return m;
+}
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let currentTeam = null;
+let currentUser = null;
+let unsubscribe = null;
+let drugs = [];
+let currentFilter = 'all';
+let dangerDays = 30;
+let warnDays = 60;
+let editingId = null;
+
+// ─── 로컬 설정 ───
+function saveLocal() {
+  try { localStorage.setItem('pharmacy_session', JSON.stringify({ team: currentTeam, user: currentUser })); } catch(e) {}
+}
+function loadLocal() {
+  try {
+    const s = localStorage.getItem('pharmacy_session');
+    if (s) { const p = JSON.parse(s); return p; }
+  } catch(e) {}
+  return null;
+}
+function saveSettings() {
+  dangerDays = parseInt(document.getElementById('set-danger').value);
+  warnDays = parseInt(document.getElementById('set-warn').value);
+  try { localStorage.setItem('pharmacy_settings', JSON.stringify({ dangerDays, warnDays })); } catch(e) {}
+  renderList();
+}
+function loadSettings() {
+  try {
+    const s = localStorage.getItem('pharmacy_settings');
+    if (s) {
+      const p = JSON.parse(s);
+      dangerDays = p.dangerDays || 30; warnDays = p.warnDays || 60;
+      document.getElementById('set-danger').value = dangerDays;
+      document.getElementById('set-warn').value = warnDays;
+    }
+  } catch(e) {}
+}
+window.saveSettings = saveSettings;
+
+// ─── 팀 입장/생성 ───
+async function joinTeam() {
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  const name = document.getElementById('join-name').value.trim();
+  const errEl = document.getElementById('login-error');
+  if (!code || !name) { errEl.textContent = '팀 코드와 이름을 입력해주세요.'; return; }
+  errEl.textContent = '';
+  try {
+    const teamRef = doc(db, 'teams', code);
+    const snap = await getDoc(teamRef);
+    if (!snap.exists()) { errEl.textContent = '존재하지 않는 팀 코드입니다. 새 팀 만들기를 이용하세요.'; return; }
+    currentTeam = code; currentUser = name;
+    saveLocal(); enterApp();
+  } catch(e) { errEl.textContent = '오류: ' + e.message; }
+}
+async function createTeam() {
+  const code = document.getElementById('create-code').value.trim().toUpperCase();
+  const name = document.getElementById('create-name').value.trim();
+  const errEl = document.getElementById('login-error');
+  if (!code || !name) { errEl.textContent = '팀 코드와 이름을 입력해주세요.'; return; }
+  if (!/^[A-Z0-9]{2,12}$/.test(code)) { errEl.textContent = '팀 코드는 영문/숫자 2~12자로 입력해주세요.'; return; }
+  errEl.textContent = '';
+  try {
+    const teamRef = doc(db, 'teams', code);
+    const snap = await getDoc(teamRef);
+    if (snap.exists()) { errEl.textContent = '이미 사용 중인 팀 코드입니다.'; return; }
+    await setDoc(teamRef, { created: new Date().toISOString(), createdBy: name });
+    currentTeam = code; currentUser = name;
+    saveLocal(); enterApp();
+  } catch(e) { errEl.textContent = '오류: ' + e.message; }
+}
+window.joinTeam = joinTeam;
+window.createTeam = createTeam;
+
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'flex';
+  document.getElementById('header-team').textContent = currentTeam;
+  document.getElementById('header-user').textContent = currentUser;
+  document.getElementById('info-team-code').textContent = currentTeam;
+  document.getElementById('info-user').textContent = currentUser;
+  loadSettings();
+  startListen();
+}
+
+function logout() {
+  if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+  try { localStorage.removeItem('pharmacy_session'); } catch(e) {}
+  currentTeam = null; currentUser = null; drugs = [];
+  document.getElementById('main-app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-error').textContent = '';
+}
+window.logout = logout;
+
+// ─── 실시간 리스닝 ───
+function startListen() {
+  if (unsubscribe) unsubscribe();
+  setSyncState('syncing');
+  const q = query(collection(db, 'teams', currentTeam, 'drugs'), orderBy('exp', 'asc'));
+  unsubscribe = onSnapshot(q, (snap) => {
+    drugs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderList();
+    setSyncState('online');
+  }, (err) => { setSyncState('offline'); console.error(err); });
+}
+
+function setSyncState(state) {
+  const dot = document.getElementById('sync-dot');
+  const text = document.getElementById('sync-text');
+  dot.className = 'sync-dot ' + (state === 'online' ? 'online' : state === 'syncing' ? 'syncing' : '');
+  text.textContent = state === 'online' ? '실시간 동기화 중' : state === 'syncing' ? '연결 중...' : '연결 끊김';
+}
+
+// ─── 유틸 ───
+function getDaysLeft(expDate) {
+  const exp = new Date(expDate); exp.setHours(23,59,59,0);
+  const now = new Date(); now.setHours(0,0,0,0);
+  return Math.ceil((exp - now) / 86400000);
+}
+function getStatus(days) {
+  if (days < 0) return 'expired';
+  if (days <= dangerDays) return 'danger';
+  if (days <= warnDays) return 'warn';
+  return 'ok';
+}
+function formatExp(expDate) {
+  const [y,m,d] = expDate.split('-');
+  return y + '년 ' + parseInt(m) + '월 ' + parseInt(d) + '일';
+}
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── 렌더링 ───
+function updateStats() {
+  let d=0, w=0;
+  drugs.forEach(drug => { const st = getStatus(getDaysLeft(drug.exp)); if(st==='danger') d++; else if(st==='warn') w++; });
+  document.getElementById('cnt-danger').textContent = d;
+  document.getElementById('cnt-warn').textContent = w;
+}
+
+function renderList() {
+  updateStats();
+  const container = document.getElementById('drug-list');
+  let filtered = drugs.filter(drug => { const st = getStatus(getDaysLeft(drug.exp)); return currentFilter==='all' || st===currentFilter; });
+  filtered.sort((a,b) => getDaysLeft(a.exp) - getDaysLeft(b.exp));
+  if (filtered.length === 0) {
+    const msg = drugs.length === 0
+      ? '<p>등록된 약품이 없습니다<br><span style="font-size:12px">추가 탭에서 약품을 등록하세요</span></p>'
+      : '<p>해당 항목이 없습니다</p>';
+    container.innerHTML = '<div class="empty"><i class="ti ti-package-off"></i>' + msg + '</div>';
+    return;
+  }
+  container.innerHTML = filtered.map(drug => {
+    const days = getDaysLeft(drug.exp);
+    const st = getStatus(days);
+    const badgeText = {danger:'긴급',warn:'주의',ok:'양호',expired:'만료'}[st];
+    const daysText = days < 0 ? '만료됨' : days === 0 ? '오늘 만료' : days + '일 남음';
+    const daysColorClass = {danger:'v-danger',warn:'v-warn',ok:'v-ok',expired:'v-danger'}[st];
+    const meta = ['유효기간: ' + formatExp(drug.exp), drug.qty].filter(Boolean).join(' · ');
+    return [
+      '<div class="drug-card">',
+        '<div class="drug-header">',
+          '<div class="drug-name">' + esc(drug.name) + '</div>',
+          '<div class="drug-controls">',
+            '<span class="badge badge-' + st + '">' + badgeText + '</span>',
+            '<button class="icon-btn" onclick="openEditModal(\'' + drug.id + '\',event)"><i class="ti ti-pencil"></i></button>',
+            '<button class="icon-btn del" onclick="deleteDrug(\'' + drug.id + '\',event)"><i class="ti ti-x"></i></button>',
+          '</div>',
+        '</div>',
+        '<div class="drug-meta">' + esc(meta) + '</div>',
+        drug.loc ? '<div class="drug-meta"><i class="ti ti-map-pin" style="font-size:12px;margin-right:2px;"></i>' + esc(drug.loc) + '</div>' : '',
+        '<div class="drug-days ' + daysColorClass + '">' + daysText + '</div>',
+        drug.addedBy ? '<div class="drug-author"><i class="ti ti-user" style="font-size:11px;margin-right:2px;"></i>' + esc(drug.addedBy) + ' 등록</div>' : '',
+      '</div>'
+    ].join('');
+  }).join('');
+}
+window.renderList = renderList;
+
+// ─── 탭 전환 ───
+function switchTab(tab) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('tab-btn-' + tab).classList.add('active');
+  if (tab === 'add') resetAddForm();
+}
+window.switchTab = switchTab;
+
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+window.setFilter = setFilter;
+
+function resetAddForm() {
+  ['inp-name','inp-exp','inp-loc','inp-qty'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('preview-name-box').style.display = 'none';
+  document.getElementById('preview-exp-box').style.display = 'none';
+  document.getElementById('ocr-log').style.display = 'none';
+  document.getElementById('analyzing').style.display = 'none';
+  document.getElementById('cam-name-btn').classList.remove('done');
+  document.getElementById('cam-exp-btn').classList.remove('done');
+}
+
+// ─── CRUD ───
+async function addDrug() {
+  const name = document.getElementById('inp-name').value.trim();
+  const exp = document.getElementById('inp-exp').value;
+  if (!name || !exp) { alert('약품명과 유효기간은 필수입니다.'); return; }
+  try {
+    await addDoc(collection(db, 'teams', currentTeam, 'drugs'), {
+      name, exp,
+      loc: document.getElementById('inp-loc').value.trim(),
+      qty: document.getElementById('inp-qty').value.trim(),
+      addedBy: currentUser,
+      addedAt: new Date().toISOString()
+    });
+    alert('저장되었습니다!');
+    switchTab('list');
+  } catch(e) { alert('저장 실패: ' + e.message); }
+}
+window.addDrug = addDrug;
+
+async function deleteDrug(id, e) {
+  e.stopPropagation();
+  if (!confirm('삭제하시겠습니까?')) return;
+  try { await deleteDoc(doc(db, 'teams', currentTeam, 'drugs', id)); } catch(e) { alert('삭제 실패: ' + e.message); }
+}
+window.deleteDrug = deleteDrug;
+
+function openEditModal(id, e) {
+  e.stopPropagation();
+  const drug = drugs.find(d => d.id === id);
+  if (!drug) return;
+  editingId = id;
+  document.getElementById('edit-name').value = drug.name || '';
+  document.getElementById('edit-exp').value = drug.exp || '';
+  document.getElementById('edit-loc').value = drug.loc || '';
+  document.getElementById('edit-qty').value = drug.qty || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+window.openEditModal = openEditModal;
+
+function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); editingId = null; }
+window.closeEditModal = closeEditModal;
+
+function closeModal(e) { if (e.target === document.getElementById('edit-modal')) closeEditModal(); }
+window.closeModal = closeModal;
+
+async function saveEdit() {
+  const name = document.getElementById('edit-name').value.trim();
+  const exp = document.getElementById('edit-exp').value;
+  if (!name || !exp) { alert('약품명과 유효기간은 필수입니다.'); return; }
+  try {
+    await updateDoc(doc(db, 'teams', currentTeam, 'drugs', editingId), {
+      name, exp,
+      loc: document.getElementById('edit-loc').value.trim(),
+      qty: document.getElementById('edit-qty').value.trim(),
+      editedBy: currentUser,
+      editedAt: new Date().toISOString()
+    });
+    closeEditModal();
+  } catch(e) { alert('수정 실패: ' + e.message); }
+}
+window.saveEdit = saveEdit;
+
+// ─── 팀 코드 복사 ───
+function copyTeamCode() {
+  navigator.clipboard.writeText(currentTeam).then(() => alert('팀 코드 복사됨: ' + currentTeam)).catch(() => alert('팀 코드: ' + currentTeam));
+}
+window.copyTeamCode = copyTeamCode;
+
+// ─── 내보내기 ───
+function exportData() {
+  const json = JSON.stringify(drugs, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = '유효기간_' + currentTeam + '_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click(); URL.revokeObjectURL(url);
+}
+window.exportData = exportData;
+
+// ─── OCR ───
+function addOcrLog(html) {
+  const log = document.getElementById('ocr-log');
+  log.style.display = 'block';
+  log.innerHTML += '<div class="ocr-log-item">' + html + '</div>';
+}
+async function analyzeImage(base64Data, mode) {
+  const analyzing = document.getElementById('analyzing');
+  document.getElementById('analyzing-msg').textContent = mode === 'name' ? '약품명 인식 중...' : '유효기간 인식 중...';
+  analyzing.style.display = 'block';
+  const prompt = mode === 'name'
+    ? '이 약품 이미지에서 약품명과 수량만 추출하여 JSON만 응답하세요 (다른 텍스트 없이): {"name":"약품명","qty":"수량"} 없으면 null.'
+    : '이 약품 이미지에서 유효기간만 추출하여 JSON만 응답하세요 (다른 텍스트 없이): {"exp":"YYYY-MM-DD"} YYYY-MM-DD 형식. 없으면 null.';
+  const model = nextGeminiModel();
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': GEMINI_KEY
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { inline_data: { mime_type: 'image/jpeg', data: base64Data } },
+          { text: prompt }
+        ]}],
+        generationConfig: { maxOutputTokens: 300, temperature: 0 }
+      })
+    });
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const parsed = JSON.parse(text.replace(/```json|```/g,'').trim());
+    analyzing.style.display = 'none';
+    addOcrLog('<i class="ti ti-cpu" style="font-size:11px;margin-right:3px;color:var(--text3);"></i><span style="font-size:11px;color:var(--text3);">' + model + '</span>');
+    if (mode === 'name') {
+      if (parsed.name) { document.getElementById('inp-name').value = parsed.name; addOcrLog('<i class="ti ti-check" style="color:#3B6D11;margin-right:4px;"></i>약품명: <b>' + esc(parsed.name) + '</b>'); }
+      else addOcrLog('<i class="ti ti-alert-circle" style="color:#BA7517;margin-right:4px;"></i>약품명 인식 실패 — 직접 입력');
+      if (parsed.qty) document.getElementById('inp-qty').value = parsed.qty;
+    } else {
+      if (parsed.exp) { document.getElementById('inp-exp').value = parsed.exp; addOcrLog('<i class="ti ti-check" style="color:#3B6D11;margin-right:4px;"></i>유효기간: <b>' + esc(parsed.exp) + '</b>'); }
+      else addOcrLog('<i class="ti ti-alert-circle" style="color:#BA7517;margin-right:4px;"></i>유효기간 인식 실패 — 직접 입력');
+    }
+  } catch(err) {
+    analyzing.style.display = 'none';
+    addOcrLog('<i class="ti ti-alert-circle" style="color:#E24B4A;margin-right:4px;"></i>' + (mode==='name'?'약품명':'유효기간') + ' 인식 오류 (' + model + ')');
+  }
+}
+
+document.getElementById('cameraNameInput').addEventListener('change', async function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(ev) {
+    document.getElementById('preview-name').src = ev.target.result;
+    document.getElementById('preview-name-box').style.display = 'block';
+    document.getElementById('cam-name-btn').classList.add('done');
+    await analyzeImage(ev.target.result.split(',')[1], 'name');
+  };
+  reader.readAsDataURL(file); e.target.value = '';
+});
+
+document.getElementById('cameraExpInput').addEventListener('change', async function(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(ev) {
+    document.getElementById('preview-exp').src = ev.target.result;
+    document.getElementById('preview-exp-box').style.display = 'block';
+    document.getElementById('cam-exp-btn').classList.add('done');
+    await analyzeImage(ev.target.result.split(',')[1], 'exp');
+  };
+  reader.readAsDataURL(file); e.target.value = '';
+});
+
+// ─── 날짜 표시 ───
+document.getElementById('today-date') && (document.getElementById('today-date').textContent = new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' }));
+
+// ─── 자동 로그인 ───
+const session = loadLocal();
+if (session && session.team && session.user) {
+  currentTeam = session.team; currentUser = session.user;
+  enterApp();
+}
+</script>
+</body>
+</html>
