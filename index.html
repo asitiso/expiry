@@ -141,14 +141,52 @@
   }
   input:focus, select:focus { outline: none; border-color: var(--border2); }
 
-  /* 설정 */
+  /* 설정 및 알림 기준 입력창 스타일 적용 (image_890441.png 스타일 참고) */
   .settings-card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 12px; }
   .settings-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; }
   .settings-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 0.5px solid var(--border); }
   .settings-row:last-child { border-bottom: none; padding-bottom: 0; }
   .settings-label { font-size: 14px; }
   .settings-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
-  .settings-row select { width: 80px; }
+  
+  /* 직접 입력을 위한 전용 컨테이너 스타일 */
+  .settings-input-container {
+    display: flex;
+    align-items: center;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+    padding: 8px 12px;
+    width: 100px;
+    justify-content: space-between;
+  }
+  .settings-input-container input {
+    border: none;
+    background: transparent;
+    text-align: right;
+    width: 55px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: inherit;
+    padding: 0;
+    margin-right: 4px;
+    outline: none;
+  }
+  /* 스핀 버튼 제거 */
+  .settings-input-container input::-webkit-outer-spin-button,
+  .settings-input-container input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  .settings-input-container input[type=number] {
+    -moz-appearance: textfield;
+  }
+  .settings-input-container span {
+    font-size: 14px;
+    color: var(--text);
+    user-select: none;
+  }
+
   .footer-note { text-align: center; font-size: 11px; color: var(--text3); padding: 8px; }
 
   /* 모달 */
@@ -315,24 +353,34 @@
           <div><div class="settings-label">접속자</div><div class="settings-sub" id="info-user">-</div></div>
         </div>
       </div>
+      
+      <!-- API 인증 키 직접 설정 및 자동 저장 카드 -->
+      <div class="settings-card">
+        <div class="settings-title">API 설정</div>
+        <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 8px; border-bottom: none; padding-bottom: 0;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="settings-label" style="font-size: 13px; font-weight: 500;">Gemini API Key</div>
+            <span style="font-size: 11px; color: var(--text3);">AQ로 시작하는 키 (자동 저장)</span>
+          </div>
+          <input type="password" id="inp-gemini-key" placeholder="API 키를 입력하면 브라우저에 저장됩니다" oninput="saveGeminiKey()" style="text-align: left; width: 100%;">
+        </div>
+      </div>
+
       <div class="settings-card">
         <div class="settings-title">알림 기준</div>
         <div class="settings-row">
           <div><div class="settings-label">긴급 기준일</div><div class="settings-sub">빨간색 표시</div></div>
-          <select id="set-danger" onchange="saveSettings()">
-            <option value="14">14일</option>
-            <option value="30" selected>30일</option>
-            <option value="60">60일</option>
-          </select>
+          <div class="settings-input-container">
+            <input type="number" id="set-danger" min="1" value="30" oninput="saveSettings()">
+            <span>일</span>
+          </div>
         </div>
         <div class="settings-row">
           <div><div class="settings-label">주의 기준일</div><div class="settings-sub">노란색 표시</div></div>
-          <select id="set-warn" onchange="saveSettings()">
-            <option value="30">30일</option>
-            <option value="60" selected>60일</option>
-            <option value="90">90일</option>
-            <option value="120">120일</option>
-          </select>
+          <div class="settings-input-container">
+            <input type="number" id="set-warn" min="1" value="60" oninput="saveSettings()">
+            <span>일</span>
+          </div>
         </div>
       </div>
       <div class="settings-card">
@@ -379,10 +427,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// =============================================
-// ★ 여기에 Firebase 설정을 붙여넣으세요 ★
-// Firebase Console > 프로젝트 설정 > 내 앱 > firebaseConfig
-// =============================================
 const firebaseConfig = {
   apiKey: "AIzaSyCeyhQKKEnHXyGG0XpOoxP4Wp576eb8QFE",
   authDomain: "todaysell-d4bbc.firebaseapp.com",
@@ -392,7 +436,11 @@ const firebaseConfig = {
   appId: "1:582095937004:web:d1547c1e4d022e654074c9"
 };
 
-const GEMINI_KEY = 'AQ.Ab8RN6Itqgl-iEWQeITHfQM6L1L5GcxMJ7lq1f1vjwhe5ewKxA';
+// 기본 내장 대체 API 키
+const DEFAULT_GEMINI_KEY = 'AQ.Ab8RN6Itqgl-iEWQeITHfQM6L1L5GcxMJ7lq1f1vjwhe5ewKxA';
+let geminiKey = DEFAULT_GEMINI_KEY;
+
+// 한도 초과 방지용 모델 리스트 & 순환 변수
 const GEMINI_MODELS = [
   'gemini-3.1-flash-lite',
   'gemini-3.5-flash',
@@ -400,6 +448,7 @@ const GEMINI_MODELS = [
   'gemini-2.5-flash'
 ];
 let geminiModelIdx = 0;
+
 function nextGeminiModel() {
   const m = GEMINI_MODELS[geminiModelIdx % GEMINI_MODELS.length];
   geminiModelIdx++;
@@ -429,24 +478,58 @@ function loadLocal() {
   } catch(e) {}
   return null;
 }
+
 function saveSettings() {
-  dangerDays = parseInt(document.getElementById('set-danger').value);
-  warnDays = parseInt(document.getElementById('set-warn').value);
+  const setDangerVal = parseInt(document.getElementById('set-danger').value);
+  const setWarnVal = parseInt(document.getElementById('set-warn').value);
+
+  // 입력값이 공백이거나 비정상적인 숫자인 경우 fallback 제공
+  dangerDays = isNaN(setDangerVal) || setDangerVal < 1 ? 30 : setDangerVal;
+  warnDays = isNaN(setWarnVal) || setWarnVal < 1 ? 60 : setWarnVal;
+
   try { localStorage.setItem('pharmacy_settings', JSON.stringify({ dangerDays, warnDays })); } catch(e) {}
   renderList();
 }
+
+function saveGeminiKey() {
+  const inputVal = document.getElementById('inp-gemini-key').value.trim();
+  geminiKey = inputVal || DEFAULT_GEMINI_KEY;
+  try {
+    localStorage.setItem('gemini_api_key', inputVal);
+  } catch(e) {}
+}
+
 function loadSettings() {
   try {
     const s = localStorage.getItem('pharmacy_settings');
     if (s) {
       const p = JSON.parse(s);
-      dangerDays = p.dangerDays || 30; warnDays = p.warnDays || 60;
-      document.getElementById('set-danger').value = dangerDays;
-      document.getElementById('set-warn').value = warnDays;
+      dangerDays = p.dangerDays || 30; 
+      warnDays = p.warnDays || 60;
     }
-  } catch(e) {}
+  } catch(e) {
+    dangerDays = 30;
+    warnDays = 60;
+  }
+  document.getElementById('set-danger').value = dangerDays;
+  document.getElementById('set-warn').value = warnDays;
+
+  // 로컬스토리지에서 개별 API Key 로드
+  try {
+    const savedKey = localStorage.getItem('gemini_api_key');
+    if (savedKey) {
+      geminiKey = savedKey;
+      document.getElementById('inp-gemini-key').value = savedKey;
+    } else {
+      geminiKey = DEFAULT_GEMINI_KEY;
+      document.getElementById('inp-gemini-key').value = '';
+    }
+  } catch(e) {
+    geminiKey = DEFAULT_GEMINI_KEY;
+  }
 }
 window.saveSettings = saveSettings;
+window.saveGeminiKey = saveGeminiKey;
 
 // ─── 팀 입장/생성 ───
 async function joinTeam() {
@@ -709,6 +792,8 @@ async function analyzeImage(base64Data, mode) {
   const prompt = mode === 'name'
     ? '이 약품 이미지에서 약품명과 수량만 추출하여 JSON만 응답하세요 (다른 텍스트 없이): {"name":"약품명","qty":"수량"} 없으면 null.'
     : '이 약품 이미지에서 유효기간만 추출하여 JSON만 응답하세요 (다른 텍스트 없이): {"exp":"YYYY-MM-DD"} YYYY-MM-DD 형식. 없으면 null.';
+  
+  // 호출 시마다 1->2->3->4 순서대로 순환 선택
   const model = nextGeminiModel();
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
   try {
@@ -716,7 +801,7 @@ async function analyzeImage(base64Data, mode) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': GEMINI_KEY
+        'x-goog-api-key': geminiKey
       },
       body: JSON.stringify({
         contents: [{ parts: [
